@@ -2,7 +2,7 @@
 ioperm - start another program with access to I/O ports
 
 ### SYNOPSIS
-Usage: `ioperm <your-program> [<your-program-args>]`
+Usage: `ioperm [-p <low-addr>-<high-addr>] <your-program> [<your-program-args>]`
 
 ### DESCRIPTION
 This program is like `sudo`; it grants extra permissions to a program. Use

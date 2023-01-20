@@ -3,6 +3,8 @@
  *
  * Copyright (C) 2017 Alex Henrie
  *
+ * Copyright (C) 2023 wuwbobo2021 <wuwbobo@outlook.com>
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -18,23 +20,60 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <sys/io.h>
 #include <unistd.h>
 
+char str_usage[] =
+"Usage: ioperm [-p <hex-l>-<hex-h>] <your-prog> [<your-prog-args>]\n";
+
 int main(int argc, char* argv[])
 {
-    if (ioperm(0, 65536, 1) == -1)
+    /* access to all ports is permitted by default */
+    uint16_t portnum_l = 0, portnum_h = 0xffff;
+    char *new_argc, **new_argv;
+    
+    if (argc < 2)
     {
-        perror("ioperm");
+    	printf("%s", str_usage);
+    	return 0;
+    }
+    
+    /* determine new_argc and new_argv */
+    if (argv[1][0] == '-' && argv[1][1] == 'p') {
+    	if (argc < 4
+        ||  sscanf(argv[2], "%hx-%hx", &portnum_l, &portnum_h) < 2
+        ||  portnum_h < portnum_l)
+        {
+            printf("%s", str_usage);
+            return 0;
+        }
+        
+        /* 0:ioperm  1:-p  2:l-h  3:new_argc  [4~n]:new_argv  NULL */
+        new_argc = argv[3];
+        new_argv = argv + 3;
+    }
+    else
+    {
+        /* 0:ioperm  1:new_argc  [2-n]:new_argv  NULL */
+        new_argc = argv[1];
+        new_argv = argv + 1;
+    }
+    
+    /* try to gain permission */
+    if (ioperm(portnum_l, portnum_h - portnum_l + 1, 1) == -1)
+    {
+        perror("try 'sudo setcap cap_sys_rawio=ep ioperm'");
         return 1;
     }
-
-    if (execvp(argv[1], argv + 1) == -1)
+    
+    /* execvp is based on execve, but the environment table is preserved */
+    if (execvp(new_argc, new_argv) == -1)
     {
-        perror("execvp");
+        perror("execvp failed");
         return 1;
     }
-
+    
     return 0;
 }
